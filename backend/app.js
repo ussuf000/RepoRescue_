@@ -1,0 +1,16 @@
+import dotenv from 'dotenv';
+import express from 'express'
+import route from './routers/auth.route.js';
+import cookieParse from 'cookie-parser'
+import analysisRoute from './routers/analysis.route.js'
+
+dotenv.config();
+const app =express();
+
+app.use(express.json());
+app.use(cookieParse())
+
+app.use('/',route);
+app.use('/',analysisRoute);
+
+export default app;
