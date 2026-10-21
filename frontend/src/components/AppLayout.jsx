@@ -1,11 +1,11 @@
-import { Menu, ShieldCheck } from 'lucide-react'
+import { Menu } from 'lucide-react'
 import { Outlet } from 'react-router-dom'
 import { useState } from 'react'
 import Sidebar from './Sidebar.jsx'
 
-export default function AppLayout({ user, onLogout }) {
+export default function AppLayout({ user, onLogout, preferences }) {
   const [open, setOpen] = useState(false)
-  return <div className="min-h-screen bg-[#f6f8fc]">
+  return <div className="app-shell min-h-screen bg-[#f6f8fc]">
     <Sidebar user={user} onLogout={onLogout} open={open} onClose={() => setOpen(false)} />
     <main className="min-h-screen lg:pl-[260px]">
       <header className="sticky top-0 z-20 flex h-[72px] items-center justify-between border-b border-slate-200/80 bg-white/90 px-5 backdrop-blur md:px-9">

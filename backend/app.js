@@ -3,6 +3,7 @@ import express from 'express'
 import route from './routers/auth.route.js';
 import cookieParse from 'cookie-parser'
 import analysisRoute from './routers/analysis.route.js'
+import projectRoute from './routers/project.route.js'
 
 dotenv.config();
 const app =express();
@@ -12,5 +13,6 @@ app.use(cookieParse())
 
 app.use('/',route);
 app.use('/',analysisRoute);
+app.use('/api/projects',projectRoute);
 
 export default app;

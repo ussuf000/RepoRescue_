@@ -1,28 +1,72 @@
-import { useState } from 'react'
-import { AlertCircle, ArrowRight, Braces, LoaderCircle, Sparkles } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { ArrowRight, BarChart3, Clock3, FolderKanban, LoaderCircle, RefreshCw, Sparkles } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { api } from '../lib/api.js'
-import AnalysisResult from '../components/AnalysisResult.jsx'
+import AnalysisRow from '../components/AnalysisRow.jsx'
+import AnalysisDetailsDialog from '../components/AnalysisDetailsDialog.jsx'
+
+const cards = [
+  { key: 'totalAnalyses', label: 'Total analyses', icon: BarChart3, tone: 'bg-indigo-50 text-indigo-600' },
+  { key: 'todayAnalyses', label: 'Created today (UTC)', icon: Clock3, tone: 'bg-emerald-50 text-emerald-600' },
+]
 
 export default function DashboardPage() {
-  const [message, setMessage] = useState(''); const [analysis, setAnalysis] = useState(null); const [error, setError] = useState(''); const [busy, setBusy] = useState(false)
-  async function submit(event) {
-    event.preventDefault(); setError(''); setAnalysis(null)
-    if (!message.trim()) { setError('Paste an error message or stack trace to continue.'); return }
+  const [stats, setStats] = useState(null)
+  const [busy, setBusy] = useState(true)
+  const [error, setError] = useState('')
+  const [selected, setSelected] = useState(null)
+  const [bookmarkBusy, setBookmarkBusy] = useState('')
+
+  const load = useCallback(async () => {
     setBusy(true)
-    try { const data = await api('/api/analysis', { method: 'POST', body: JSON.stringify({ errorMessage: message.trim() }) }); setAnalysis(data.analysis) }
-    catch (e) { setError(e.message) }
+    setError('')
+    try { const data = await api('/api/dashboard/stats'); setStats(data.stats) }
+    catch (reason) { setError(reason.message) }
     finally { setBusy(false) }
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  const maxTrend = Math.max(1, ...(stats?.dailyTrend || []).map(day => day.count))
+  const topType = stats?.errorTypes?.[0]
+  const closeDetails = useCallback(() => setSelected(null), [])
+
+  async function toggleBookmark(item) {
+    setBookmarkBusy(item._id)
+    try {
+      await api(`/api/bookmarks/${item._id}`, { method: item.isBookmarked ? 'DELETE' : 'POST' })
+      await load()
+    } catch (reason) { setError(reason.message) }
+    finally { setBookmarkBusy('') }
   }
+
   return <>
-    <div className="mb-8"><div className="mb-3 inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700"><Sparkles size={14}/> AI-powered debugging</div><h1 className="text-3xl font-bold tracking-tight text-slate-900 md:text-[34px]">What are you stuck on?</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Paste an error message or stack trace. RepoRescue will break down the cause and suggest a path to a fix.</p></div>
-    <form onSubmit={submit} className="panel overflow-hidden">
-      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 md:px-6"><div className="flex items-center gap-2 text-sm font-semibold text-slate-700"><Braces size={17} className="text-indigo-600"/> Error details</div><span className="text-xs text-slate-400">{message.length} characters</span></div>
-      <div className="p-4 md:p-6"><label htmlFor="error-message" className="sr-only">Error message or stack trace</label><textarea id="error-message" value={message} onChange={e => setMessage(e.target.value)} placeholder={'Paste your error or stack trace here…\n\nFor example:\nTypeError: Cannot read properties of undefined (reading \'map\')'} rows={9} className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50/70 p-4 font-mono text-[13px] leading-6 text-slate-800 outline-none transition placeholder:font-sans placeholder:text-slate-400 focus:border-indigo-400 focus:bg-white focus:ring-4 focus:ring-indigo-100" />
-        {error && <p role="alert" className="mt-3 flex items-start gap-2 rounded-lg bg-rose-50 px-3 py-2.5 text-sm text-rose-700"><AlertCircle size={17} className="mt-0.5 shrink-0"/>{error}</p>}
-        <div className="mt-4 flex flex-col justify-between gap-3 sm:flex-row sm:items-center"><p className="text-xs leading-5 text-slate-400">Remove secrets or private data before submitting.</p><button disabled={busy} className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-200 transition hover:-translate-y-0.5 hover:bg-indigo-700 disabled:translate-y-0 disabled:opacity-60">{busy ? <><LoaderCircle size={17} className="animate-spin"/> Analyzing error…</> : <>Analyze error <ArrowRight size={17}/></>}</button></div>
+    <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+      <div><div className="mb-2 inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700"><Sparkles size={14}/> Developer overview</div><h1 className="text-3xl font-bold tracking-tight text-slate-900">Dashboard</h1><p className="mt-2 text-sm text-slate-500">Your debugging activity, at a glance.</p></div>
+      <Link to="/analyze" className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-200 transition hover:bg-indigo-700">Analyze an error <ArrowRight size={17}/></Link>
+    </div>
+
+    {error && <div role="alert" className="mb-5 flex items-center justify-between gap-3 rounded-xl bg-rose-50 p-4 text-sm text-rose-700"><span>{error}</span><button onClick={load} className="inline-flex shrink-0 items-center gap-1.5 font-semibold"><RefreshCw size={15}/> Retry</button></div>}
+
+    {busy && !stats ? <div className="panel flex items-center justify-center gap-2 p-16 text-sm text-slate-500"><LoaderCircle size={19} className="animate-spin"/> Loading your dashboard…</div> : stats && <>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {cards.map(({ key, label, icon: Icon, tone }) => <article className="panel p-5" key={key}><div className="flex items-center justify-between"><span className="text-sm font-medium text-slate-500">{label}</span><span className={`grid size-10 place-items-center rounded-xl ${tone}`}><Icon size={19}/></span></div><p className="mt-4 text-3xl font-bold tracking-tight text-slate-900">{stats[key] ?? 0}</p></article>)}
+        <article className="panel p-5"><div className="flex items-center justify-between"><span className="text-sm font-medium text-slate-500">Most common error</span><span className="grid size-10 place-items-center rounded-xl bg-amber-50 text-amber-600"><BarChart3 size={19}/></span></div><p className="mt-4 truncate text-lg font-bold text-slate-900" title={topType?._id}>{topType?._id || 'No data yet'}</p><p className="mt-1 text-xs text-slate-400">{topType ? `${topType.count} occurrence${topType.count === 1 ? '' : 's'}` : 'Run an analysis to see trends'}</p></article>
+        <Link to="/projects" className="panel group p-5 transition hover:border-indigo-200"><div className="flex items-center justify-between"><span className="text-sm font-medium text-slate-500">Projects</span><span className="grid size-10 place-items-center rounded-xl bg-violet-50 text-violet-600"><FolderKanban size={19}/></span></div><p className="mt-4 text-sm font-semibold text-slate-800 group-hover:text-indigo-700">Organize your work</p><p className="mt-1 text-xs text-slate-400">View your project workspace →</p></Link>
       </div>
-    </form>
-    {busy && <div className="mt-5 flex items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4 text-sm text-indigo-700"><LoaderCircle size={18} className="animate-spin"/><span>Reading the error and preparing a clear explanation…</span></div>}
-    <AnalysisResult analysis={analysis}/>
+
+      <div className="mt-5 grid gap-5 xl:grid-cols-[1.15fr_.85fr]">
+        <section className="panel overflow-hidden"><div className="flex items-center justify-between border-b border-slate-100 px-5 py-4"><div><h2 className="font-semibold text-slate-900">Recent analyses</h2><p className="mt-1 text-xs text-slate-400">Your latest debugging sessions</p></div><Link to="/history" className="text-xs font-semibold text-indigo-600 hover:text-indigo-700">View history</Link></div>
+          {stats.recentAnalyses?.length ? <div className="divide-y divide-slate-100">{stats.recentAnalyses.map(item => <AnalysisRow key={item._id} analysis={item} onOpen={setSelected} onToggleBookmark={toggleBookmark} bookmarkBusy={bookmarkBusy === item._id}/>)}</div> : <div className="px-5 py-12 text-center"><p className="text-sm font-semibold text-slate-700">No analyses yet</p><p className="mt-1 text-xs text-slate-500">Your completed analyses will appear here.</p></div>}
+        </section>
+
+        <section className="panel p-5"><div className="mb-5"><h2 className="font-semibold text-slate-900">Error activity</h2><p className="mt-1 text-xs text-slate-400">Daily analyses over the past 7 days (UTC)</p></div>
+          <div className="flex h-40 items-end gap-2 border-b border-slate-100 pb-2" role="img" aria-label={`Daily analyses: ${(stats.dailyTrend || []).map(day => `${day.date}, ${day.count}`).join('; ')}`}>
+            {(stats.dailyTrend || []).map(day => <div key={day.date} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-2"><span className="text-[10px] font-semibold text-slate-500">{day.count}</span><div className="w-full max-w-10 rounded-t-lg bg-indigo-500 transition-all" style={{ height: `${Math.max(day.count ? 12 : 4, day.count / maxTrend * 100)}%` }} title={`${day.count} analyses`} /><span className="text-[10px] text-slate-400">{new Date(`${day.date}T00:00:00Z`).toLocaleDateString(undefined, { weekday: 'short', timeZone: 'UTC' })}</span></div>)}
+          </div>
+          <div className="mt-5"><h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Error type breakdown</h3>{stats.errorTypes?.length ? <div className="space-y-3">{stats.errorTypes.slice(0, 5).map(type => <div key={type._id}><div className="mb-1 flex justify-between gap-3 text-xs"><span className="truncate text-slate-600">{type._id || 'Uncategorized'}</span><span className="font-semibold text-slate-700">{type.count}</span></div><div className="h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-indigo-400" style={{ width: `${Math.max(5, type.count / Math.max(1, topType?.count || 1) * 100)}%` }}/></div></div>)}</div> : <p className="text-sm text-slate-400">No error statistics yet.</p>}</div>
+        </section>
+      </div>
+    </>}
+    {selected && <AnalysisDetailsDialog analysis={selected} onClose={closeDetails}/>}
   </>
 }

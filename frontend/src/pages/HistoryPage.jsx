@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { AlertCircle, Check, Clock3, Copy, LoaderCircle, Search, Trash2, X } from 'lucide-react'
+import { AlertCircle, Bookmark, BookmarkCheck, Check, Clock3, Copy, FolderKanban, LoaderCircle, Search, Trash2, X } from 'lucide-react'
 import { api } from '../lib/api.js'
 
 const dateText = value => {
@@ -16,6 +16,9 @@ export default function HistoryPage() {
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
   const [deleting, setDeleting] = useState('')
+  const [bookmarkBusy, setBookmarkBusy] = useState('')
+  const [projects, setProjects] = useState([])
+  const [projectFilter, setProjectFilter] = useState('')
   const [selected, setSelected] = useState(null)
   const [detail, setDetail] = useState(null)
   const [detailBusy, setDetailBusy] = useState(false)
@@ -27,16 +30,17 @@ export default function HistoryPage() {
     setBusy(true)
     setError('')
     try {
-      const data = await api('/api/history')
+      const data = await api(`/api/history${projectFilter ? `?projectId=${encodeURIComponent(projectFilter)}` : ''}`)
       setItems(data.analyses || [])
     } catch (e) {
       setError(e.message)
     } finally {
       setBusy(false)
     }
-  }, [])
+  }, [projectFilter])
 
   useEffect(() => { load() }, [load])
+  useEffect(() => { api('/api/projects').then(data => setProjects(data.projects || [])).catch(reason => setError(reason.message)) }, [])
 
   useEffect(() => {
     if (!selected) return undefined
@@ -106,6 +110,18 @@ export default function HistoryPage() {
     }
   }
 
+  async function toggleBookmark(item) {
+    setBookmarkBusy(item._id)
+    setError('')
+    try {
+      const bookmarked = !item.isBookmarked
+      await api(`/api/bookmarks/${item._id}`, { method: bookmarked ? 'POST' : 'DELETE' })
+      setItems(current => current.map(entry => entry._id === item._id ? { ...entry, isBookmarked: bookmarked } : entry))
+      if (detail?._id === item._id) setDetail(current => ({ ...current, isBookmarked: bookmarked }))
+    } catch (e) { setError(e.message) }
+    finally { setBookmarkBusy('') }
+  }
+
   const normalizedQuery = query.trim().toLocaleLowerCase()
   const filtered = items.filter(item =>
     `${item.errorType || ''} ${item.errorMessage || ''}`.toLocaleLowerCase().includes(normalizedQuery),
@@ -119,9 +135,9 @@ export default function HistoryPage() {
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">Analysis history</h1>
         <p className="mt-2 text-sm text-slate-500">Review the errors you’ve worked through.</p>
       </div>
-      <div className="relative w-full sm:max-w-xs">
-        <Search size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
-        <input aria-label="Search history" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search analyses…" className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"/>
+      <div className="grid w-full gap-2 sm:max-w-lg sm:grid-cols-2">
+        <label className="relative"><span className="sr-only">Filter history by project</span><FolderKanban size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/><select aria-label="Filter history by project" value={projectFilter} onChange={e => setProjectFilter(e.target.value)} className="w-full appearance-none rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"><option value="">All projects</option>{projects.map(project => <option key={project._id} value={project._id}>{project.name}</option>)}</select></label>
+        <div className="relative"><Search size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/><input aria-label="Search history" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search analyses…" className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"/></div>
       </div>
     </div>
 
@@ -131,8 +147,8 @@ export default function HistoryPage() {
       {busy ? <div className="flex items-center justify-center gap-2 p-14 text-sm text-slate-500"><LoaderCircle className="animate-spin" size={18}/> Loading your history…</div>
         : filtered.length === 0 ? <div className="px-6 py-16 text-center">
           <div className="mx-auto mb-4 grid size-12 place-items-center rounded-2xl bg-indigo-50 text-indigo-600"><Clock3 size={22}/></div>
-          <h2 className="font-semibold text-slate-800">{normalizedQuery ? 'No matching analyses' : 'No analyses yet'}</h2>
-          <p className="mt-1 text-sm text-slate-500">{normalizedQuery ? 'Try another error type or part of the original error message.' : 'Completed error analyses will appear here after you analyze an error.'}</p>
+          <h2 className="font-semibold text-slate-800">{normalizedQuery || projectFilter ? 'No matching analyses' : 'No analyses yet'}</h2>
+          <p className="mt-1 text-sm text-slate-500">{normalizedQuery || projectFilter ? 'Try another search or choose a different project.' : 'Completed error analyses will appear here after you analyze an error.'}</p>
           {normalizedQuery && <button onClick={() => setQuery('')} className="mt-4 text-sm font-semibold text-indigo-600 hover:text-indigo-700">Clear search</button>}
         </div>
         : <div className="divide-y divide-slate-100">{filtered.map(item => <article key={item._id} className="p-5 transition hover:bg-slate-50/60 md:px-6">
@@ -141,7 +157,7 @@ export default function HistoryPage() {
               <div className="mb-2 flex flex-wrap items-center gap-2"><span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">{item.errorType || 'Analysis'}</span><span className="text-xs text-slate-400">{dateText(item.createdAt)}</span></div>
               <p className="line-clamp-2 whitespace-pre-wrap font-mono text-xs leading-5 text-slate-600">{item.errorMessage}</p>
             </div>
-            <button aria-label="Delete analysis" title="Delete analysis" disabled={deleting === item._id} onClick={() => remove(item._id)} className="rounded-lg p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50">{deleting === item._id ? <LoaderCircle size={17} className="animate-spin"/> : <Trash2 size={17}/>}</button>
+            <div className="flex shrink-0 items-center gap-1"><button aria-label={item.isBookmarked ? 'Remove bookmark' : 'Bookmark analysis'} title={item.isBookmarked ? 'Remove bookmark' : 'Bookmark analysis'} disabled={bookmarkBusy === item._id} onClick={() => toggleBookmark(item)} className="rounded-lg p-2 text-amber-600 transition hover:bg-amber-50 disabled:opacity-50">{bookmarkBusy === item._id ? <LoaderCircle size={17} className="animate-spin"/> : item.isBookmarked ? <BookmarkCheck size={17} fill="currentColor"/> : <Bookmark size={17}/>}</button><button aria-label="Delete analysis" title="Delete analysis" disabled={deleting === item._id} onClick={() => remove(item._id)} className="rounded-lg p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50">{deleting === item._id ? <LoaderCircle size={17} className="animate-spin"/> : <Trash2 size={17}/>}</button></div>
           </div>
           <button onClick={() => openDetails(item)} className="mt-3 text-left text-xs font-semibold text-indigo-600 hover:text-indigo-700">View explanation <span aria-hidden="true">›</span></button>
         </article>)}</div>}

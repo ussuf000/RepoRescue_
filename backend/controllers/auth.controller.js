@@ -1,94 +1,60 @@
-import userModel from "../model/user.model.js";
-import bcrypt, { hash } from 'bcrypt'
-import jwt from 'jsonwebtoken'
+import userModel from '../model/user.model.js';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 
-export async function userRegister(req,res) {
-    const {username,email,password} = req.body;
+const cookieOptions = {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 7 * 24 * 60 * 60 * 1000
+};
 
-    const user= await userModel.findOne({
-        email
-    })
-    if(user){
-        return res.status(401).json({
-            message:"user is already register"
-        })
+const publicUser = user => ({ id: user._id, username: user.username, email: user.email, createdAt: user.createdAt });
+const validEmail = value => typeof value === 'string' && value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
+export async function userRegister(req, res) {
+    const username = typeof req.body?.username === 'string' ? req.body.username.trim() : '';
+    const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    const password = req.body?.password;
+    if (username.length < 2 || username.length > 80 || !validEmail(email) || typeof password !== 'string' || password.length < 6 || password.length > 128) {
+        return res.status(400).json({ success: false, message: 'Provide a valid name, email address, and password (6–128 characters)' });
     }
-    
-      console.log(req.body);
-
-    const hash=await bcrypt.hash(password,10);
-  
-    
-    console.log(req.body.password);
-
-    const newuser=await userModel.create({
-        username,
-        password:hash,
-        email
-
-    })
-
-    const token=jwt.sign({
-        id:newuser._id
-    },process.env.JWT_SECRET,{expiresIn:'7d'})
-
-    res.cookie("token",token);
-
-    res.status(201).json({
-        message:'register successful',
-       user:{
-          username:newuser.username,
-        password:newuser.password,
-        email:newuser.email,
-        token
-
-       }
-        
-       
-    })
-
-    
+    try {
+        const existingUser = await userModel.findOne({ email });
+        if (existingUser) return res.status(409).json({ success: false, message: 'An account with this email already exists' });
+        const user = await userModel.create({ username, email, password: await bcrypt.hash(password, 10) });
+        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+        res.cookie('token', token, cookieOptions);
+        return res.status(201).json({ success: true, message: 'Registration successful', user: publicUser(user) });
+    } catch (error) {
+        if (error?.code === 11000) return res.status(409).json({ success: false, message: 'An account with this email already exists' });
+        console.error('Registration error:', error);
+        return res.status(500).json({ success: false, message: 'Registration failed' });
+    }
 }
 
-export async function userLogin(req,res) {
-
-    const {email,password}= req.body;
-
-    const user=await userModel.findOne({email});
-
-    if(!user){
-        return res.status(409).json({
-            message:"unauthroize"
-        })
+export async function userLogin(req, res) {
+    const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    const password = req.body?.password;
+    if (!validEmail(email) || typeof password !== 'string' || !password.length || password.length > 128) {
+        return res.status(400).json({ success: false, message: 'Provide a valid email address and password' });
     }
-    const isvalidpassword=await bcrypt.compare(password,user.password)
-    if(!isvalidpassword){
-        return res.status(409).json({
-            message:"unauthroize"
-        })
+    try {
+        const user = await userModel.findOne({ email }).select('+password');
+        if (!user || !(await bcrypt.compare(password, user.password))) {
+            return res.status(401).json({ success: false, message: 'Email or password is incorrect' });
+        }
+        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+        res.cookie('token', token, cookieOptions);
+        return res.status(200).json({ success: true, message: 'Login successful', user: publicUser(user) });
+    } catch (error) {
+        console.error('Login error:', error);
+        return res.status(500).json({ success: false, message: 'Login failed' });
     }
-
-  const token=  jwt.sign({
-        id:user._id
-    },process.env.JWT_SECRET)
-    
-    res.cookie('token',token)
-
-   return  res.status(200).json({
-        message:"user login successfully",
-        user
-    })
-    
 }
 
- export async function userLogout(req,res) {
-
-    res.clearCookie('token');
-
-    return res.status(203).json({
-        message:"user logout successfully"
-    })
-
-    
-    
+export function userLogout(req, res) {
+    const { maxAge, ...clearOptions } = cookieOptions;
+    res.clearCookie('token', clearOptions);
+    return res.status(200).json({ success: true, message: 'Logout successful' });
 }

@@ -17,3 +17,34 @@ button { cursor: pointer; }
 .panel { border: 1px solid #e7ebf2; border-radius: 1rem; background: #fff; box-shadow: 0 2px 8px rgb(25 36 58 / 3%); }
 .animate-in { animation: appear .28s ease-out both; }
 @keyframes appear { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+html[data-theme="dark"] body { background: #0e1626; color: #e2e8f0; }
+html[data-theme="dark"] .app-shell { background: #0e1626; }
+html[data-theme="dark"] .panel,
+html[data-theme="dark"] .bg-white,
+html[data-theme="dark"] .bg-white\/90,
+html[data-theme="dark"] .bg-white\/95 { background-color: #151f32; border-color: #29364b; }
+html[data-theme="dark"] [class~="bg-slate-50"],
+html[data-theme="dark"] [class~="bg-slate-50/60"],
+html[data-theme="dark"] [class~="bg-slate-50/70"],
+html[data-theme="dark"] [class~="bg-slate-100"] { background-color: #1c2940; }
+html[data-theme="dark"] [class~="bg-indigo-50"] { background-color: #232b50; }
+html[data-theme="dark"] [class~="bg-emerald-50"] { background-color: #153c37; }
+html[data-theme="dark"] [class~="bg-amber-50"] { background-color: #45361e; }
+html[data-theme="dark"] [class~="bg-violet-50"] { background-color: #35274d; }
+html[data-theme="dark"] [class~="border-slate-100"],
+html[data-theme="dark"] [class~="border-slate-200"],
+html[data-theme="dark"] [class~="border-slate-200/80"] { border-color: #29364b; }
+html[data-theme="dark"] [class~="text-slate-900"],
+html[data-theme="dark"] [class~="text-slate-800"],
+html[data-theme="dark"] [class~="text-slate-700"] { color: #e5edf8; }
+html[data-theme="dark"] [class~="text-slate-600"],
+html[data-theme="dark"] [class~="text-slate-500"] { color: #b2bfd2; }
+html[data-theme="dark"] [class~="text-slate-400"] { color: #8b9bb2; }
+html[data-theme="dark"] input,
+html[data-theme="dark"] select,
+html[data-theme="dark"] textarea { background-color: #111b2d; border-color: #34435c; color: #e5edf8; }
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder { color: #8493a9; }
+html[data-theme="dark"] .hover\:bg-slate-50:hover,
+html[data-theme="dark"] .hover\:bg-slate-100:hover { background-color: #25334b; }

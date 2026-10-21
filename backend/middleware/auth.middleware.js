@@ -9,11 +9,15 @@ import jwt from 'jsonwebtoken'
             message:"unauthroize"
         })
     }
-    const decoded=jwt.verify(
-        token,
-    process.env.JWT_SECRET)
-
-    req.user=decoded;
-    next();
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        if (!decoded?.id) {
+            return res.status(401).json({ success: false, message: 'Unauthorized' });
+        }
+        req.user = decoded;
+        return next();
+    } catch {
+        return res.status(401).json({ success: false, message: 'Session is invalid or expired' });
+    }
     
 }
