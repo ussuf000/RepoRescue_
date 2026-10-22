@@ -5,7 +5,7 @@ import tailwindcss from '@tailwindcss/vite'
 const backend = 'http://localhost:3000'
 
 export default defineConfig({
-  base: '/RepoRescue/',
+  base: '/RepoRescue_/',
   plugins: [react(), tailwindcss()],
   server: {
     proxy: {
