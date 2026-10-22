@@ -1,4 +1,4 @@
-const API_ROOT = (import.meta.env.VITE_API_ROOT || '').replace(/\/$/, '')
+const API_ROOT = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
 
 function apiUrl(path) {
   const endpoint = path.startsWith('/') ? path : `/${path}`
