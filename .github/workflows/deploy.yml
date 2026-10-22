@@ -40,8 +40,6 @@ jobs:
       - name: Build frontend
         run: npm run build
         working-directory: frontend
-        env:
-          VITE_API_ROOT: ${{ vars.VITE_API_ROOT }}
 
       - name: Add SPA fallback page
         run: cp dist/index.html dist/404.html

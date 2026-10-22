@@ -7,7 +7,9 @@ frontend/dist
 
 # Environment files
 backend/.env
-frontend/.env
+frontend/.env*
+!frontend/.env.development
+!frontend/.env.production
 
 # Logs
 *.log

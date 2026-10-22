@@ -1,7 +1,12 @@
-const API_ROOT = import.meta.env.VITE_API_ROOT || ''
+const API_ROOT = (import.meta.env.VITE_API_ROOT || '').replace(/\/$/, '')
+
+function apiUrl(path) {
+  const endpoint = path.startsWith('/') ? path : `/${path}`
+  return `${API_ROOT}${endpoint}`
+}
 
 export async function api(path, options = {}) {
-  const response = await fetch(`${API_ROOT}${path}`, {
+  const response = await fetch(apiUrl(path), {
     ...options,
     credentials: 'include',
     headers: {
