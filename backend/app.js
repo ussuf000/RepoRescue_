@@ -8,6 +8,13 @@ import projectRoute from './routers/project.route.js'
 dotenv.config();
 const app =express();
 
+app.get('/health', (req, res) => {
+    res.status(200).json({
+        success: true,
+        message: 'RepoRescue backend is running'
+    });
+});
+
 app.use(express.json());
 app.use(cookieParse())
 
